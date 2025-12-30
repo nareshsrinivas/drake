@@ -53,7 +53,7 @@ if not DATABASE_URL:
 
 SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")
 
-config.set_main_option("sqlalchemy.url", SYNC_DATABASE_URL)
+config.set_main_option("sqlalchemy.url", SYNC_DATABASE_URL.replace("%", "%%"))
 
 
 # -------------------------------------------------
