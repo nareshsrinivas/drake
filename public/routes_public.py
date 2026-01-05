@@ -474,7 +474,6 @@ async def get_public_model_details(
             "interested_categories": professional.interested_categories if professional else [],
         },
 
-        # ✅ MEDIA GALLERY (IMAGES + VIDEO)
         "media_gallery": {
             "images": images,  # max 5
             "video": video  # single
@@ -514,7 +513,7 @@ async def get_public_agencies(
     stmt = (
         select(User, AgencyProfile)
         .join(AgencyProfile, AgencyProfile.user_id == User.id)
-        .where(User.user_type == 2)  # 🔥 REMOVED approved filter
+        .where(User.user_type == 2)
         .order_by(AgencyProfile.company_name.asc())
     )
 
@@ -596,28 +595,273 @@ async def get_public_contact_banner(db: AsyncSession = Depends(get_db)):
 # 💼 PUBLIC JOB POSTINGS
 # -------------------------------
 
+from datetime import datetime
+from sqlalchemy import func
+import os
+
+def build_pay_string(job):
+    if not job.pay_min and not job.pay_max:
+        return None
+
+    # 💰 Amount
+    if job.pay_min and job.pay_max:
+        amount = f"${job.pay_min:,.0f} – ${job.pay_max:,.0f}"
+    elif job.pay_min:
+        amount = f"From ${job.pay_min:,.0f}"
+    else:
+        amount = f"Up to ${job.pay_max:,.0f}"
+
+    # 🧠 Unit mapping
+    unit_map = {
+        "per_day": "per day",
+        "per_month": "per month",
+        "per_year": "per year",
+        "per_episode": "per episode",
+        "per_movie": "per movie",
+        "per_project": "per project"
+    }
+
+    unit = None
+    if job.pay_unit:
+        unit = unit_map.get(job.pay_unit.strip().lower())
+
+    # ✅ FINAL STRING
+    return f"{amount} {unit}".strip() if unit else amount
+
 @router.get("/jobs")
 async def get_all_jobs(db: AsyncSession = Depends(get_db)):
     stmt = (
         select(JobPosting, AgencyProfile)
         .join(User, User.id == JobPosting.agency_id)
         .join(AgencyProfile, AgencyProfile.user_id == User.id)
-        .where(JobPosting.is_delete == False)
-        .order_by(JobPosting.id.desc())  # ✅ FIXED
+        .where(
+            JobPosting.is_delete == False,
+            JobPosting.visibility == "public"
+        )
+        .order_by(JobPosting.id.desc())
     )
 
     result = await db.execute(stmt)
+    rows = result.all()
 
-    return [
-        {
+    now = datetime.utcnow()
+    response = []
+
+    for job, profile in rows:
+        logo_path = job.logo or profile.logo
+        logo = logo_path.replace("\\", "/") if logo_path else None
+
+        posted = None
+        if job.date_from:
+            days = (now - job.date_from).days
+            posted = "Today" if days <= 0 else f"{days} days ago"
+
+        response.append({
             "uuid": str(job.uuid),
             "title": job.title,
             "description": job.description,
+            "project_type": job.project_type,
+            "location": job.location,
+            "logo": logo,
+
+            # 🔥 PAY DISPLAY
+            "pay": build_pay_string(job),
+            "pay_unit": job.pay_unit,
+
+            "posted": posted,
+
             "agency": {
                 "uuid": str(profile.uuid),
                 "company_name": profile.company_name
             }
-        }
-        for job, profile in result.all()
-    ]
+        })
 
+    return response
+
+
+
+#====================
+# get public profile
+#====================
+@router.get("/profile/{token:path}")
+async def get_public_profile_by_token(
+    token: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    from core.aes_encryption import aes_decrypt
+    from urllib.parse import unquote
+
+    try:
+        safe_token = unquote(token)
+        decrypted_token = aes_decrypt(safe_token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    stmt = select(User).where(User.share_token == decrypted_token)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid or expired link")
+
+    # Fetch related objects (profile, media, professional, portfolio, social links)
+    media_res = await db.execute(
+        select(ModelMedia).where(ModelMedia.user_id == user.id).limit(1)
+    )
+    media = media_res.scalars().first()
+
+    profile_res = await db.execute(
+        select(ModelProfile).where(ModelProfile.user_id == user.id).limit(1)
+    )
+    profile = profile_res.scalars().first()
+
+    professional_res = await db.execute(
+        select(ModelProfessional).where(ModelProfessional.user_id == user.id).limit(1)
+    )
+    professional = professional_res.scalars().first()
+
+    portfolio_res = await db.execute(
+        select(ModelPortfolio).where(ModelPortfolio.user_id == user.id)
+    )
+    portfolio = portfolio_res.scalars().all()
+
+    # SOCIAL LINKS
+    social_links_res = await db.execute(
+        select(UserSocialLink).where(UserSocialLink.user_id == user.id)
+    )
+    social_links = social_links_res.scalars().all()
+
+    # =========================
+    # ✅ IMAGES + VIDEO (FIXED)
+    # =========================
+    base_url = str(request.base_url).rstrip("/")
+
+    # Parent media (for video)
+    media_gallery_res = await db.execute(
+        select(Image_Videos).where(Image_Videos.user_id == user.id)
+    )
+    media_gallery_db = media_gallery_res.scalars().first()
+
+    images = []
+    video = None
+    profile_photo = None
+
+    # Only fetch images if media_gallery exists
+    if media_gallery_db:
+        # Fetch images from ModelImages table
+        images_res = await db.execute(
+            select(ModelImages)
+            .where(ModelImages.media_uuid == media_gallery_db.uuid)
+            .order_by(ModelImages.image_index)
+            .limit(5)
+        )
+        images_db = images_res.scalars().all()
+
+        images = [
+            f"{base_url}/{img.image_path}"
+            for img in images_db
+        ]
+
+        # Set profile photo as first image
+        profile_photo = images[0] if images else None
+
+        # Set video if exists
+        if media_gallery_db.video:
+            video = f"{base_url}/{media_gallery_db.video}"
+
+    return {
+        "basic_info": {
+            "uuid": str(user.uuid),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "full_name": f"{user.first_name} {user.last_name}",
+            "profile_photo": profile_photo,
+            "current_city": user.current_city,
+            "age": user.age,
+            "gender": user.gender,
+            "nationality": user.nationality,
+            "profile_visible": True
+        },
+
+        "profile": {
+            "height": profile.height if profile else None,
+            "weight": profile.weight if profile else None,
+            "chest_bust": profile.chest_bust if profile else None,
+            "waist": profile.waist if profile else None,
+            "hips": profile.hips if profile else None,
+            "shoulder": profile.shoulder if profile else None,
+            "shoe_size": profile.shoe_size if profile else None,
+            "complexion": profile.complexion if profile else None,
+            "eye_color": profile.eye_color if profile else None,
+            "hair_color": profile.hair_color if profile else None,
+            "body_type": profile.body_type if profile else None,
+            "hair_length": profile.hair_length if profile else None,
+        },
+
+        "professional": {
+            "experience_details": professional.experience_details if professional else None,
+            "skills": professional.skills if professional else [],
+            "languages": professional.languages if professional else [],
+            "interested_categories": professional.interested_categories if professional else [],
+        },
+
+        "media_gallery": {
+            "images": images,  # max 5
+            "video": video  # single
+        },
+
+        "social_links": [
+            {
+                "uuid": str(link.uuid),
+                "platform": link.platform,
+                "url": link.url,
+            }
+            for link in social_links
+        ],
+
+        "portfolio": [
+            {
+                "uuid": str(item.uuid),
+                "media_type": item.media_type,
+                "file_url": item.file_url
+            }
+            for item in portfolio
+        ]
+    }
+
+
+
+# @router.get("/profile/{token:path}")
+# async def get_public_profile_by_token(
+#     token: str,
+#     request: Request,
+#     db: AsyncSession = Depends(get_db),
+# ):
+#     from core.aes_encryption import aes_decrypt
+#     from urllib.parse import unquote
+#
+#     try:
+#         safe_token = unquote(token)
+#         decrypted_token = aes_decrypt(safe_token)
+#     except Exception:
+#         raise HTTPException(status_code=400, detail="Invalid token")
+#
+#     stmt = select(User).where(User.share_token == decrypted_token)
+#     result = await db.execute(stmt)
+#     user = result.scalar_one_or_none()
+#
+#     if not user:
+#         raise HTTPException(status_code=404, detail="Invalid or expired link")
+#
+#     return {
+#         "uuid": str(user.uuid),
+#         "first_name": user.first_name,
+#         "last_name": user.last_name,
+#         "full_name": f"{user.first_name} {user.last_name}",
+#         "current_city": user.current_city,
+#         "age": user.age,
+#         "gender": user.gender,
+#         "nationality": user.nationality,
+#         "profile_visible": True
+#     }

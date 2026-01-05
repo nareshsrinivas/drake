@@ -5,31 +5,32 @@ from uuid import UUID
 from database import get_db
 from core.security import get_current_user, oauth2_scheme
 from .model_social_link_schema import (
-    SocialLinkCreateMulti,
-    SocialLinkResponse
+    SocialLinkCreate,
+    SocialLinkResponse,
+    SocialLinkPatch
 )
 from .model_social_link_service import (
-    add_multiple_links,
+    add_social_links,
     get_all_links,
-    delete_social_link
+    delete_social_link,
+    patch_social_links
 )
 
 router = APIRouter(prefix="/social/links", tags=["Social Links"])
 
 # ------------------ ADD MULTIPLE LINKS ------------------
 @router.post(
-    "/",status_code=status.HTTP_201_CREATED,
-    response_model=list[SocialLinkResponse],
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=SocialLinkResponse,
     dependencies=[Depends(oauth2_scheme)]
 )
-
 async def add_links(
-    data: SocialLinkCreateMulti,
+    data: SocialLinkCreate,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    return await add_multiple_links(db, current_user.id, data.links)
-
+    return await add_social_links(db, current_user.id, data)
 
 # ------------------ GET ALL LINKS ------------------
 
@@ -43,6 +44,21 @@ async def list_links(
     current_user=Depends(get_current_user)
 ):
     return await get_all_links(db, current_user.id)
+
+
+
+# ------------------ PATCH LINKS ------------------
+@router.patch(
+    "/",
+    response_model=SocialLinkResponse,
+    dependencies=[Depends(oauth2_scheme)]
+)
+async def patch_links(
+    data: SocialLinkPatch,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return await patch_social_links(db, current_user.id, data)
 
 
 # ------------------ DELETE LINK BY UUID ------------------

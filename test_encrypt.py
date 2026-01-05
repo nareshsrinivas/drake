@@ -14,4 +14,4 @@ from core.aes_encryption import aes_encrypt,aes_decrypt
 # print(aes_encrypt("123456"))
 # print(aes_decrypt('3JMy1Jl4ToRl/KTsFjaUDw=='))
 print(aes_decrypt('F4PgZErfgMvcC6tqRT13vw=='))
-print(aes_encrypt("Mangu123"))
+print(aes_encrypt("Test@123"))

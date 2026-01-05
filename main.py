@@ -93,6 +93,7 @@ app.include_router(slider_router)
 app.include_router(work_router)
 app.include_router(skill_router)
 app.include_router(contact_router)
+
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 

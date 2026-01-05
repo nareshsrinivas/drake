@@ -65,6 +65,28 @@ async def update_professional_by_uuid(
     )
 
 
+@router.patch("/")
+async def update_my_professional(
+    data: ModelProfessionalSchema,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    prof = await get_professional_by_user_id(db, user.id)
+
+    if not prof:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found"
+        )
+
+    return await create_or_update_professional(
+        db=db,
+        user_id=user.id,
+        data=data,
+    )
+
+
+
 @router.delete("/{uuid}")
 async def delete(uuid: str, db: AsyncSession = Depends(get_db)):
     deleted = await delete_professional(db, uuid)
@@ -73,3 +95,21 @@ async def delete(uuid: str, db: AsyncSession = Depends(get_db)):
 
     return {"message": "User deleted successfully"}
 
+
+
+@router.delete("/")
+async def delete_my_professional(
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    prof = await get_professional_by_user_id(db, user.id)
+
+    if not prof:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found"
+        )
+
+    await delete_professional(db, str(prof.uuid))
+
+    return {"message": "Profile deleted successfully"}

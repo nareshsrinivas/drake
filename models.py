@@ -1,10 +1,12 @@
 import uuid
-from sqlalchemy import Column, Integer, Enum, JSON, Numeric, Float, String, Date, ForeignKey, Table, UniqueConstraint, Text, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, Enum, JSON, Numeric, Float, String, Date, ForeignKey, Table, UniqueConstraint, \
+    Text, Boolean, DateTime, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from database import Base
 import enum
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
+
 
 # -------------------------
 # ENUMS
@@ -14,6 +16,8 @@ class ExperienceLevelEnum(enum.Enum):
     intermediate = "Intermediate"
     professional = "Professional"
     expert = "Expert"
+
+
 # -------------------------
 # USER MODEL
 # -------------------------
@@ -28,6 +32,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
 
+    share_token = Column(String, unique=True, nullable=True, index=True)
     user_type = Column(Integer, nullable=False)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
@@ -48,14 +53,13 @@ class User(Base):
     job_postings = relationship("JobPosting", back_populates="agency")
 
 
-
 class ModelProfile(Base):
     __tablename__ = "model_profile"
 
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    height = Column(String(100),nullable=True)
+    height = Column(String(100), nullable=True)
     weight = Column(String(100), nullable=True)
     chest_bust = Column(String(100), nullable=True)
     waist = Column(String(100), nullable=True)
@@ -109,7 +113,7 @@ class ModelMedia(Base):
     head_shot = Column(String, nullable=True)
     profile_photo = Column(String, nullable=True)
     introduction_video = Column(String, nullable=True)
-    social_links = Column(JSONB, nullable=True)
+    # social_links = Column(JSONB, nullable=True)
     created_by = Column(Integer, nullable=True)
     updated_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=func.now())
@@ -129,17 +133,22 @@ class ModelPortfolio(Base):
     updated_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    
-    
+
+
 class UserSocialLink(Base):
     __tablename__ = "user_social_links"
 
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    platform = Column(String, nullable=False)
-    url = Column(String, nullable=False)
-    
+    x = Column(String, nullable=False)
+    instagram = Column(String, nullable=False)
+    tiktok = Column(String, nullable=False)
+    snapchat = Column(String, nullable=False)
+    pinterest = Column(String, nullable=False)
+    linkedin = Column(String, nullable=False)
+    youtube = Column(String, nullable=False)
+
 
 class AgencyProfile(Base):
     __tablename__ = "agency_profile"
@@ -147,7 +156,7 @@ class AgencyProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
 
-    user_id = Column(Integer, ForeignKey("users.id"),nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     company_name = Column(String(255), nullable=False)
     contact_name = Column(String(255), nullable=False)
@@ -156,12 +165,12 @@ class AgencyProfile(Base):
     address = Column(String(500), nullable=True)
 
     # ⭐ NEW FIELDS
-    logo = Column(String(255), nullable=True)                      # Agency Logo
-    tagline = Column(String(255), nullable=True)                   # Small tagline
-    about = Column(Text, nullable=True)                            # Agency description
+    logo = Column(String(255), nullable=True)  # Agency Logo
+    tagline = Column(String(255), nullable=True)  # Small tagline
+    about = Column(Text, nullable=True)  # Agency description
 
     # Multiple Services (Stored as JSON ARRAY)
-    services = Column(JSON, nullable=True)                         # e.g. ["Model Casting", "Portfolio Shoot"]
+    services = Column(JSON, nullable=True)  # e.g. ["Model Casting", "Portfolio Shoot"]
 
     # Social Links (JSON)
     social_links = Column(JSON, nullable=True)
@@ -172,7 +181,6 @@ class AgencyProfile(Base):
     #   "youtube": "https://youtube.com/star",
     #   "linkedin": "https://linkedin.com/star"
     # }
-
 
     verified = Column(Boolean, default=False)
 
@@ -188,10 +196,11 @@ class AdminUser(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
-    username = Column(String(50),nullable=False)
+    username = Column(String(50), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
     password = Column(String(255), nullable=False)
-    role = Column(String(20),default="admin")
+    role = Column(String(20), default="admin")
+
 
 class HomeSlider(Base):
     __tablename__ = "home_slider"
@@ -223,11 +232,10 @@ class WorkType(Base):
     is_delete = Column(Boolean, default=False)
 
 
-
 class Skill(Base):
     __tablename__ = "skill"
 
-    id= Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
     title = Column(String(255), nullable=False)
     other_title = Column(String(255), nullable=True)
@@ -248,7 +256,7 @@ class Contact(Base):
     email = Column(String(200), nullable=False, index=True)
     phone = Column(String(200), nullable=False)
     subject = Column(String(250), nullable=False)
-    message = Column(Text,nullable=False)
+    message = Column(Text, nullable=False)
     created_at = Column(DateTime, default=func.now())
 
 
@@ -273,7 +281,6 @@ class ContactBanner(Base):
     is_delete = Column(Boolean, default=False)
 
 
-
 class JobPosting(Base):
     __tablename__ = "job_posting"
 
@@ -286,6 +293,7 @@ class JobPosting(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text)
     project_type = Column(String(100))
+    logo = Column(String(255), nullable=True)
 
     gender = Column(String(30), default="any")
     location = Column(String(255))
@@ -293,6 +301,7 @@ class JobPosting(Base):
     pay_min = Column(Float)
     pay_max = Column(Float)
     pay_type = Column(String(50))
+    pay_unit = Column(String(50), nullable=True)
     is_paid = Column(Boolean, default=True)
 
     # 🔥 NAIVE DATETIMES ONLY
@@ -312,7 +321,6 @@ class JobPosting(Base):
     is_delete = Column(Boolean, default=False)
 
 
-
 class JobApplication(Base):
     __tablename__ = "job_applications"
 
@@ -329,15 +337,15 @@ class JobApplication(Base):
     message = Column(Text, nullable=True)
     selected_media = Column(JSON, nullable=True)
 
-    status = Column(String(50), default="applied")        # applied / shortlisted / rejected / hired
+    status = Column(String(50), default="applied")  # applied / shortlisted / rejected / hired
     admin_notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     is_delete = Column(Boolean, default=False)
-    
-    
+
+
 # -------------------------
 # model filters
 # -------------------------
@@ -370,9 +378,31 @@ class Image_Videos(Base):
     user_id = Column(Integer, index=True, nullable=False)
 
     video = Column(String, nullable=True)  # single video only
-    video_url = Column(String, nullable=True)   # add video url
+    video_url = Column(String, nullable=True)  # add video url
 
     created_at = Column(DateTime, server_default=func.now())
+
+
+# ---- video child table
+class ModelVideos(Base):
+    __tablename__ = "model_videos"
+
+    id = Column(Integer, primary_key=True)
+    media_uuid = Column(
+        UUID(as_uuid=True),
+        ForeignKey("model_video.uuid", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    video_index = Column(Integer, nullable=False)  # 0–1
+    video_path = Column(String, nullable=False)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("media_uuid", "video_index"),
+    )
 
 
 class ModelImages(Base):
@@ -396,7 +426,7 @@ class ModelImages(Base):
         UniqueConstraint("media_uuid", "image_index"),
     )
 
-    
+
 # -------------------------
 # model_profile_progress
 # -------------------------
@@ -407,5 +437,3 @@ class ProfileStep(str, Enum):
     Image_Videos = "model_video"
     user_social_links = "user_social_links"
     status = "true_or_false"
-
-

@@ -11,4 +11,5 @@ class ImagesResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        extra = "forbid"
 

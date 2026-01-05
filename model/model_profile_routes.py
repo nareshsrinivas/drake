@@ -60,6 +60,28 @@ async def update(
     return profile
 
 
+# update profile with current user
+@router.patch("/")
+async def update_my_profile(
+    data: ModelProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    profile = await get_profile_by_user_id(db, user.id)
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    updated_profile = await update_profile(
+        db=db,
+        uuid=str(profile.uuid),
+        data=data,
+        user_id=user.id
+    )
+
+    return updated_profile
+
+
 # Get profile
 @router.get("/{uuid}")
 async def get(
@@ -72,6 +94,26 @@ async def get(
         raise HTTPException(status_code=404, detail="Profile not found")
 
     return profile
+
+
+# delete with current user
+@router.delete("/")
+async def delete_my_profile(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    profile = await get_profile_by_user_id(db, user.id)
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    await delete_profile(
+        db=db,
+        uuid=str(profile.uuid),
+        user_id=user.id
+    )
+
+    return {"message": "Profile deleted"}
 
 
 # Delete profile

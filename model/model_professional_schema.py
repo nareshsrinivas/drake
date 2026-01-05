@@ -16,6 +16,32 @@ class ModelProfessionalSchema(BaseModel):
 
     willing_to_travel: Optional[bool] = None
 
+
+    # string optimistic validation
+    @model_validator(mode="before")
+    @classmethod
+    def validate_meaningful_input(cls, values):
+        for value in values.values():
+            # ignore booleans
+            if isinstance(value, bool):
+                continue
+            # string validation
+            if isinstance(value, str):
+                cleaned = value.strip().lower()
+                if cleaned and cleaned != "string":
+                    return values
+            # list validation
+            if isinstance(value, list):
+                cleaned_list = [
+                    str(v).strip().lower()
+                    for v in value
+                    if str(v).strip() and str(v).strip().lower() != "string"
+                ]
+                if cleaned_list:
+                    return values
+
+        raise ValueError("Fill some information")
+
     @model_validator(mode="after")
     def validate_experience(self):
         if self.professional_experience is True:
@@ -29,3 +55,5 @@ class ModelProfessionalSchema(BaseModel):
         return self
 
 
+    class config:
+        extra = "forbid"

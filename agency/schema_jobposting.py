@@ -9,6 +9,7 @@ class JobPostingBase(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     project_type: Optional[str] = None
+    logo: Optional[str] = None
 
     gender: Optional[str] = "any"
     location: Optional[str] = None
@@ -16,6 +17,7 @@ class JobPostingBase(BaseModel):
     pay_min: Optional[float] = None
     pay_max: Optional[float] = None
     pay_type: Optional[str] = None
+    pay_unit: Optional[str] = None
     is_paid: Optional[bool] = True
 
     date_from: Optional[datetime] = None

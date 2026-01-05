@@ -1,9 +1,9 @@
 # agency/service_jobposting.py
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from uuid import UUID
 from datetime import datetime
-from models import JobPosting
+from models import JobPosting, JobApplication
 
 
 def to_naive(dt: datetime | None):
@@ -90,20 +90,48 @@ async def get_jobposting_by_uuid(db: AsyncSession, uuid: UUID):
     return result.scalars().first()
 
 
+
 async def delete_jobposting(db: AsyncSession, uuid: UUID, agency_id: int):
+    # 🔎 Fetch job
     result = await db.execute(
-        select(JobPosting).where(JobPosting.uuid == uuid)
+        select(JobPosting).where(
+            JobPosting.uuid == uuid,
+            JobPosting.agency_id == agency_id
+        )
     )
     job = result.scalars().first()
 
     if not job:
         return None, "Job not found"
 
-    if job.agency_id != agency_id:
-        return None, "Unauthorized"
+    # ❗ HARD DELETE: pehle job applications delete karo
+    await db.execute(
+        delete(JobApplication).where(
+            JobApplication.job_id == job.id
+        )
+    )
 
+    # ❗ Ab job delete karo
     await db.delete(job)
     await db.commit()
 
     return True, None
+
+
+# async def delete_jobposting(db: AsyncSession, uuid: UUID, agency_id: int):
+#     result = await db.execute(
+#         select(JobPosting).where(JobPosting.uuid == uuid)
+#     )
+#     job = result.scalars().first()
+#
+#     if not job:
+#         return None, "Job not found"
+#
+#     if job.agency_id != agency_id:
+#         return None, "Unauthorized"
+#
+#     await db.delete(job)
+#     await db.commit()
+#
+#     return True, None
 

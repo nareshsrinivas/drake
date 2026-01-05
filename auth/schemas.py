@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from datetime import date
 from uuid import UUID
 
@@ -22,6 +22,15 @@ class RegisterUser(BaseModel):
             raise ValueError("password and confirm_password do not match")
         return v
 
+    class Config:
+        extra = "forbid"   # 🔥 THIS IS THE KEY
+
+    @field_validator("confirm_password")
+    def passwords_match(cls, v, info):
+        if info.data.get("password") != v:
+            raise ValueError("password and confirm_password do not match")
+        return v
+
 
 # ---------------- UPDATE PROFILE ---------------- #
 
@@ -31,11 +40,29 @@ class UpdateUserInfo(BaseModel):
     nationality: str | None = None
     home_town: str | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate_meaningful_input(cls, values):
+        for value in values.values():
+
+            if isinstance(value, str):
+                cleaned = value.strip().lower()
+                if cleaned and cleaned != "string":
+                    return values
+
+        raise ValueError("Fill some information")
+
+    class Config:
+        extra = "forbid"
+
 # ---------------- LOGIN ---------------- #
 
 class LoginUser(BaseModel):
     email: EmailStr
     password: str
+
+    class Config:
+        extra = "forbid"
 
 
 # ---------------- REFRESH TOKEN ---------------- #

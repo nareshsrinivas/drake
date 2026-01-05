@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -22,9 +22,27 @@ class ModelProfileCreate(BaseModel):
     facial_hair: Optional[str] = None
     bust_cup_size: Optional[str] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate_meaningful_input(cls, values):
+
+        for value in values.values():
+
+            # ignore booleans completely
+            if isinstance(value, bool):
+                continue
+
+            if isinstance(value, str):
+                cleaned = value.strip().lower()
+                if cleaned and cleaned != "string":
+                    return values
+
+        raise ValueError("Fill some information")
+
 class ModelProfileUpdate(ModelProfileCreate):
     pass
 
-
+    class Config:
+        extra = "forbid"
 
 

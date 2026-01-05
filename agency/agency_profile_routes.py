@@ -56,6 +56,54 @@ async def create_jobposting_api(
     return job
 
 
+# ---------------------------------------
+# UPLOAD JOB POSTING LOGO
+# ---------------------------------------
+@router.post("/jobposting/{job_uuid}/upload-logo")
+async def upload_job_logo(
+        job_uuid: UUID,
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_db),
+        user=Depends(get_current_user)
+):
+    if user.user_type != 2:
+        raise HTTPException(403, "Only agencies can upload job logos")
+
+    if not file.filename.lower().endswith(("jpg", "jpeg", "png", "webp")):
+        raise HTTPException(400, "Invalid image format")
+
+    result = await db.execute(
+        select(JobPosting).where(
+            JobPosting.uuid == job_uuid,
+            JobPosting.agency_id == user.id,
+            JobPosting.is_delete == False
+        )
+    )
+    job = result.scalars().first()
+
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    filename = f"{uuid.uuid4()}_{file.filename.replace(' ', '_')}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+
+    job.logo = file_path
+    job.updated_by = user.id
+
+    await db.commit()
+    await db.refresh(job)
+
+    return {
+        "message": "Job logo uploaded successfully",
+        "logo": file_path.replace("\\", "/"),
+        "job_uuid": str(job.uuid)
+    }
+
+
+
 @router.patch("/jobposting/{uuid}", response_model=JobPostingOut)
 async def update_jobposting_api(
         uuid: UUID,
