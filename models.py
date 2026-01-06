@@ -141,13 +141,13 @@ class UserSocialLink(Base):
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    x = Column(String, nullable=False)
-    instagram = Column(String, nullable=False)
-    tiktok = Column(String, nullable=False)
-    snapchat = Column(String, nullable=False)
-    pinterest = Column(String, nullable=False)
-    linkedin = Column(String, nullable=False)
-    youtube = Column(String, nullable=False)
+    x = Column(String, nullable=True)
+    instagram = Column(String, nullable=True)
+    tiktok = Column(String, nullable=True)
+    snapchat = Column(String, nullable=True)
+    pinterest = Column(String, nullable=True)
+    linkedin = Column(String, nullable=True)
+    youtube = Column(String, nullable=True)
 
 
 class AgencyProfile(Base):
@@ -344,33 +344,6 @@ class JobApplication(Base):
     # relationships
     job = relationship("JobPosting", backref="applications")
     model = relationship("User")
-
-# class JobApplication(Base):
-#     __tablename__ = "job_applications"
-#
-#     id = Column(Integer, primary_key=True, index=True)
-#     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
-#
-#     job_id = Column(Integer, ForeignKey("job_posting.id", ondelete="CASCADE"), nullable=False)
-#     model_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-#
-#     # relationships
-#     job = relationship("JobPosting", backref="applications")
-#     model = relationship("User")
-#
-#     message = Column(Text, nullable=True)
-#     # selected_media = Column(JSON, nullable=True)
-#
-#     resume_upload = Column(String(255), nullable=True)
-#
-#     status = Column(String(50), default="applied")  # applied / shortlisted / rejected / hired
-#     admin_notes = Column(Text, nullable=True)
-#
-#     created_at = Column(DateTime(timezone=True), server_default=func.now())
-#     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-#
-#     is_delete = Column(Boolean, default=False)
-
 
 # -------------------------
 # model filters
