@@ -16,7 +16,7 @@ def to_naive(dt: datetime | None):
 async def create_jobposting(db: AsyncSession, data, agency_id: int):
     job = JobPosting(
         agency_id=agency_id,
-        title=data.title,
+        job_role=data.job_role,
         description=data.description,
         project_type=data.project_type,
         gender=data.gender,
@@ -24,7 +24,11 @@ async def create_jobposting(db: AsyncSession, data, agency_id: int):
         pay_min=data.pay_min,
         pay_max=data.pay_max,
         pay_type=data.pay_type,
+        pay_unit=data.pay_unit,
         is_paid=data.is_paid,
+
+        qualifications=data.qualifications,
+        required_skills=data.required_skills,
 
         # 🔥 CLEAN DATETIMES HERE
         date_from=to_naive(data.date_from),

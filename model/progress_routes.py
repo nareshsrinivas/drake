@@ -23,12 +23,12 @@ router = APIRouter(
 )
 
 async def check_profile_completion(
-    user_id: str,
+    user_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     # 1️⃣ Fetch User
     user = await db.scalar(
-        select(User).where(User.uuid == user_id)
+        select(User).where(User.id == user_id)
     )
 
     if not user:

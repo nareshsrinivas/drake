@@ -1,11 +1,29 @@
 import os
-from sqlalchemy import select, delete
+import json
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from models import Image_Videos, ModelVideos
 
-MAX_FREE_VIDEOS = 2
+MAX_FREE_MEDIA = 2
+
+
+# ---------- SAFE JSON ----------
+
+def safe_json_list(value) -> list:
+    if not value or not isinstance(value, str):
+        return []
+
+    value = value.strip()
+    if not value:
+        return []
+
+    try:
+        data = json.loads(value)
+        return data if isinstance(data, list) else []
+    except json.JSONDecodeError:
+        return []
 
 
 # ---------- MEDIA ----------
@@ -19,60 +37,73 @@ async def get_or_create_media(db: AsyncSession, user_id: int) -> Image_Videos:
     if media:
         return media
 
-    media = Image_Videos(user_id=user_id)
+    media = Image_Videos(user_id=user_id, video_url="[]")
     db.add(media)
     await db.commit()
     await db.refresh(media)
     return media
 
 
-# ---------- INDEX ----------
-
-async def get_next_video_index(db: AsyncSession, media_uuid):
-    res = await db.execute(
-        select(ModelVideos.video_index)
-        .where(ModelVideos.media_uuid == media_uuid)
-    )
-    used = {r[0] for r in res.fetchall()}
-
-    if len(used) >= MAX_FREE_VIDEOS:
-        raise HTTPException(
-            status_code=403,
-            detail="Subscribe to add more videos"
-        )
-
-    for i in range(MAX_FREE_VIDEOS):
-        if i not in used:
-            return i
-
-
-# ---------- ADD ----------
+# ---------- ADD VIDEO FILE ----------
 
 async def add_video(db: AsyncSession, user_id: int, path: str):
     media = await get_or_create_media(db, user_id)
-    index = await get_next_video_index(db, media.uuid)
 
-    video = ModelVideos(
-        media_uuid=media.uuid,
-        video_index=index,
-        video_path=path
+    res = await db.execute(
+        select(ModelVideos).where(ModelVideos.media_uuid == media.uuid)
     )
-    db.add(video)
+    videos = res.scalars().all()
+
+    links = safe_json_list(media.video_url)
+
+    if len(videos) + len(links) >= MAX_FREE_MEDIA:
+        raise HTTPException(403, "Subscribe to add more videos or links")
+
+    db.add(ModelVideos(
+        media_uuid=media.uuid,
+        video_index=len(videos),
+        video_path=path
+    ))
     await db.commit()
 
+
+# ---------- ADD VIDEO LINK ----------
 
 async def add_video_link(db: AsyncSession, user_id: int, url: str):
     media = await get_or_create_media(db, user_id)
 
-    if media.video_url:
-        raise HTTPException(
-            status_code=403,
-            detail="Subscribe to add more videos"
-        )
+    links = safe_json_list(media.video_url)
 
-    media.video_url = url
+    res = await db.execute(
+        select(ModelVideos).where(ModelVideos.media_uuid == media.uuid)
+    )
+    videos_count = len(res.scalars().all())
+
+    if videos_count + len(links) >= MAX_FREE_MEDIA:
+        raise HTTPException(403, "Subscribe to add more videos or links")
+
+    links.append(url)
+    media.video_url = json.dumps(links)
     await db.commit()
 
+
+# --------Patch video link -----
+async def update_video_link_by_index(
+    db: AsyncSession,
+    user_id: int,
+    index: int,
+    new_url: str
+):
+    media = await get_or_create_media(db, user_id)
+
+    links = safe_json_list(media.video_url)
+
+    if index < 0 or index >= len(links):
+        raise HTTPException(status_code=404, detail="Video link not found")
+
+    links[index] = new_url
+    media.video_url = json.dumps(links)
+    await db.commit()
 
 # ---------- GET ----------
 
@@ -87,7 +118,7 @@ async def get_videos(db: AsyncSession, user_id: int):
     return media, res.scalars().all()
 
 
-# ---------- REPLACE ----------
+# ---------- REPLACE VIDEO ----------
 
 async def replace_video_by_index(
     db: AsyncSession,
@@ -98,8 +129,7 @@ async def replace_video_by_index(
     media = await get_or_create_media(db, user_id)
 
     res = await db.execute(
-        select(ModelVideos)
-        .where(
+        select(ModelVideos).where(
             ModelVideos.media_uuid == media.uuid,
             ModelVideos.video_index == index
         )
@@ -116,7 +146,7 @@ async def replace_video_by_index(
     await db.commit()
 
 
-# ---------- DELETE ----------
+# ---------- DELETE VIDEO ----------
 
 async def delete_video_by_index(
     db: AsyncSession,
@@ -126,8 +156,7 @@ async def delete_video_by_index(
     media = await get_or_create_media(db, user_id)
 
     res = await db.execute(
-        select(ModelVideos)
-        .where(
+        select(ModelVideos).where(
             ModelVideos.media_uuid == media.uuid,
             ModelVideos.video_index == index
         )
@@ -145,111 +174,3 @@ async def delete_video_by_index(
 
 
 
-# import os
-# from sqlalchemy import select
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from fastapi import HTTPException
-#
-# from models import Image_Videos
-#
-#
-# # ---------------- HELPERS ---------------- #
-#
-# async def get_media(db: AsyncSession, user_id: int) -> Image_Videos:
-#     result = await db.execute(
-#         select(Image_Videos).where(Image_Videos.user_id == user_id)
-#     )
-#     media = result.scalars().first()
-#
-#     if not media:
-#         media = Image_Videos(user_id=user_id)
-#         db.add(media)
-#         await db.commit()
-#         await db.refresh(media)
-#
-#     return media
-#
-#
-# def ensure_single_media(media: Image_Videos, mode: str):
-#     """
-#     mode = 'video' or 'link'
-#     """
-#     if media.video or media.video_url:
-#         raise HTTPException(
-#             status_code=403,
-#             detail=f"Subscribe to add more {mode}s"
-#         )
-#
-#
-# # ---------------- VIDEO FILE ---------------- #
-#
-# async def save_video_path(db: AsyncSession, user_id: int, path: str):
-#     media = await get_media(db, user_id)
-#
-#     ensure_single_media(media, "video")
-#
-#     media.video = path
-#     media.video_url = None
-#     await db.commit()
-#
-#
-# async def replace_video_path(db: AsyncSession, user_id: int, new_path: str):
-#     media = await get_media(db, user_id)
-#
-#     if not media.video:
-#         raise HTTPException(404, "No video found")
-#
-#     if media.video and os.path.exists(media.video):
-#         os.remove(media.video)
-#
-#     media.video = new_path
-#     await db.commit()
-#
-#
-# # ---------------- VIDEO LINK ---------------- #
-#
-# async def save_video_link(db: AsyncSession, user_id: int, url: str):
-#     media = await get_media(db, user_id)
-#
-#     ensure_single_media(media, "link")
-#
-#     media.video_url = url
-#     media.video = None
-#     await db.commit()
-#
-#
-# async def replace_video_link(
-#     db: AsyncSession,
-#     user_id: int,
-#     new_url: str
-# ):
-#     media = await get_media(db, user_id)
-#
-#     if media.video:
-#         raise HTTPException(
-#             status_code=400,
-#             detail="Cannot update link when video file exists"
-#         )
-#
-#     if not media.video_url:
-#         raise HTTPException(
-#             status_code=404,
-#             detail="No video link found"
-#         )
-#
-#     media.video_url = new_url
-#     await db.commit()
-#
-# # ---------------- DELETE ---------------- #
-# async def delete_video(db: AsyncSession, user_id: int):
-#     media = await get_media(db, user_id)
-#
-#     if not media.video and not media.video_url:
-#         raise HTTPException(404, "No media found")
-#
-#     if media.video and os.path.exists(media.video):
-#         os.remove(media.video)
-#
-#     media.video = None
-#     media.video_url = None
-#     await db.commit()

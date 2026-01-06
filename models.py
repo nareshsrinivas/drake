@@ -290,7 +290,7 @@ class JobPosting(Base):
     agency_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     agency = relationship("User", back_populates="job_postings")
 
-    title = Column(String(255), nullable=False)
+    job_role = Column(String(255), nullable=False)
     description = Column(Text)
     project_type = Column(String(100))
     logo = Column(String(255), nullable=True)
@@ -303,6 +303,9 @@ class JobPosting(Base):
     pay_type = Column(String(50))
     pay_unit = Column(String(50), nullable=True)
     is_paid = Column(Boolean, default=True)
+
+    qualifications = Column(Text, nullable=True)
+    required_skills = Column(String(500), nullable=True)
 
     # 🔥 NAIVE DATETIMES ONLY
     date_from = Column(DateTime, nullable=True)
@@ -325,25 +328,48 @@ class JobApplication(Base):
     __tablename__ = "job_applications"
 
     id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
+    uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
 
     job_id = Column(Integer, ForeignKey("job_posting.id", ondelete="CASCADE"), nullable=False)
     model_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    # relationships
-    job = relationship("JobPosting", backref="applications")
-    model = relationship("User")
-
-    message = Column(Text, nullable=True)
-    selected_media = Column(JSON, nullable=True)
-
     status = Column(String(50), default="applied")  # applied / shortlisted / rejected / hired
-    admin_notes = Column(Text, nullable=True)
+    admin_notes = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     is_delete = Column(Boolean, default=False)
+
+    # relationships
+    job = relationship("JobPosting", backref="applications")
+    model = relationship("User")
+
+# class JobApplication(Base):
+#     __tablename__ = "job_applications"
+#
+#     id = Column(Integer, primary_key=True, index=True)
+#     uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True)
+#
+#     job_id = Column(Integer, ForeignKey("job_posting.id", ondelete="CASCADE"), nullable=False)
+#     model_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+#
+#     # relationships
+#     job = relationship("JobPosting", backref="applications")
+#     model = relationship("User")
+#
+#     message = Column(Text, nullable=True)
+#     # selected_media = Column(JSON, nullable=True)
+#
+#     resume_upload = Column(String(255), nullable=True)
+#
+#     status = Column(String(50), default="applied")  # applied / shortlisted / rejected / hired
+#     admin_notes = Column(Text, nullable=True)
+#
+#     created_at = Column(DateTime(timezone=True), server_default=func.now())
+#     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+#
+#     is_delete = Column(Boolean, default=False)
 
 
 # -------------------------

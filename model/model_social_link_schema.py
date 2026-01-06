@@ -19,8 +19,8 @@ class SocialLinkCreate(BaseModel):
             raise ValueError("At least one social link must be provided")
         return values
 
-    class Config:
-        extra = "forbid"
+    # class Config:
+    #     extra = "forbid"
 
 
 # -------- RESPONSE --------
@@ -36,11 +36,11 @@ class SocialLinkResponse(BaseModel):
 
     class Config:
         orm_mode = True
-        extra = "forbid"
+        # extra = "forbid"
 
 
 class SocialLinkPatch(BaseModel):
-    twitter: str | None = None
+    x: str | None = None
     instagram: str | None = None
     tiktok: str | None = None
     snapchat: str | None = None
@@ -55,7 +55,7 @@ class SocialLinkPatch(BaseModel):
             raise ValueError("At least one social link must be provided")
         return values
 
-    class Config:
-        extra = "forbid"
+    # class Config:
+    #     extra = "forbid"
 
 

@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 class JobPostingBase(BaseModel):
-    title: Optional[str] = None
+    job_role: Optional[str] = None
     description: Optional[str] = None
     project_type: Optional[str] = None
     logo: Optional[str] = None
@@ -19,6 +19,9 @@ class JobPostingBase(BaseModel):
     pay_type: Optional[str] = None
     pay_unit: Optional[str] = None
     is_paid: Optional[bool] = True
+
+    qualifications: Optional[str] = None
+    required_skills: Optional[str] = None
 
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
