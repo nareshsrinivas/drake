@@ -11,7 +11,6 @@ from urllib.parse import quote
 
 router = APIRouter(prefix="/share", tags=["Profile Sharing"])
 
-
 @router.get("/profile")
 async def share_profile_url(
     request: Request,

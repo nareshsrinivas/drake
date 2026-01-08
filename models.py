@@ -426,6 +426,18 @@ class ModelImages(Base):
     )
 
 
+# -----------------images videos merge -----------------------
+class ImageVideoMerge(Base):
+    __tablename__ = "images_videos"
+
+    id = Column(Integer, primary_key=True)
+    uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
+
+    user_id = Column(Integer, index=True, nullable=False)
+    images = Column(JSON,nullable=True,default=list)
+    videos = Column(JSON,nullable=True,default=list)
+    created_at = Column(DateTime, server_default=func.now())
+
 # -------------------------
 # model_profile_progress
 # -------------------------

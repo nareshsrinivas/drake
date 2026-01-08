@@ -14,6 +14,7 @@ from model.model_info import router as model_info_router
 # from model.model_video_routes import router as video_router
 from model.model_images_routes import router as model_images_router
 from model.model_videos_routes import router as model_videos_router
+from model.model_images_videos_routes import router as model_images_videos_router
 from model.model_social_link_routes import router as social_links_router
 # from model.model_profile_progress_routes import router as profile_progress_router
 from model.progress_routes import router as progress_router
@@ -35,6 +36,7 @@ router.include_router(portfolio_router)
 # router.include_router(video_router)
 router.include_router(model_images_router)
 router.include_router(model_videos_router)
+router.include_router(model_images_videos_router)
 
 router.include_router(model_info_router)
 router.include_router(social_links_router)

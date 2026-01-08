@@ -32,7 +32,9 @@ def parse_job_media(request: Request, job):
         "logo": f"{base}/{job.logo}" if getattr(job, "logo", None) else None
     }
 
-# ---------------------------------------------- job posting routes ------------------------------
+# ------------------------------------------------------------------------------------------------------------
+# -------------------------------------------job posting ----------------------
+# -------------------------------------------------------------------------------------------------------------
 
 @router.post("/jobposting", status_code=status.HTTP_201_CREATED,response_model=JobPostingOut)
 async def create_jobposting_api(
@@ -109,6 +111,109 @@ async def upload_job_logo(
     }
 
 
+# -------- combined job posting = info + logo ---------
+@router.post("/job/post", status_code=status.HTTP_201_CREATED, response_model=JobPostingOut)
+async def create_job_with_logo(
+    request: Request,
+
+    # -------- job fields (FORM DATA) --------
+    job_role: str = Form(...),
+    description: str | None = Form(None),
+    project_type: str | None = Form(None),
+
+    gender: str | None = Form("any"),
+    location: str | None = Form(None),
+
+    pay_min: float | None = Form(None),
+    pay_max: float | None = Form(None),
+    pay_type: str | None = Form(None),
+    pay_unit: str | None = Form(None),
+    is_paid: bool | None = Form(True),
+
+    qualifications: str | None = Form(None),
+    required_skills: str | None = Form(None),
+
+    requirements: str | None = Form(None),
+    status: str | None = Form("open"),
+    visibility: str | None = Form("public"),
+
+    # -------- logo --------
+    logo: UploadFile | None = File(None),
+
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    if current_user.user_type != 2:
+        raise HTTPException(403, "Only agencies can create jobs")
+
+    # 🔒 Job limit check
+    result = await db.execute(
+        select(JobPosting).where(
+            JobPosting.agency_id == current_user.id,
+            JobPosting.is_delete == False
+        )
+    )
+    if len(result.scalars().all()) >= 3:
+        raise HTTPException(400, "subscribe for more job postings")
+
+    # ✅ UPDATED: SAFE requirements parsing
+    parsed_requirements = None
+    if requirements and requirements.strip():
+        try:
+            parsed_requirements = json.loads(requirements)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400,
+                detail="requirements must be valid JSON"
+            )
+
+    # 🧠 Build schema manually
+    data = JobPostingCreate(
+        job_role=job_role,
+        description=description,
+        project_type=project_type,
+        gender=gender,
+        location=location,
+        pay_min=pay_min,
+        pay_max=pay_max,
+        pay_type=pay_type,
+        pay_unit=pay_unit,
+        is_paid=is_paid,
+        qualifications=qualifications,
+        required_skills=required_skills,
+        requirements=parsed_requirements,
+        status=status,
+        visibility=visibility
+    )
+
+    job, err = await create_jobposting(db, data, current_user.id)
+    if err:
+        raise HTTPException(400, err)
+
+    # 🖼️ LOGO UPLOAD
+    if logo:
+        if not logo.filename.lower().endswith(("jpg", "jpeg", "png", "webp")):
+            raise HTTPException(400, "Invalid image format")
+
+        filename = f"{uuid.uuid4()}_{logo.filename.replace(' ', '_')}"
+        file_path = os.path.join(UPLOAD_DIR, filename)
+
+        with open(file_path, "wb") as f:
+            f.write(await logo.read())
+
+        job.logo = file_path
+        job.updated_by = current_user.id
+        await db.commit()
+        await db.refresh(job)
+
+    media = parse_job_media(request, job)
+
+    return {
+        **job.__dict__,
+        **media
+    }
+
+
 
 @router.patch("/jobposting/{uuid}", response_model=JobPostingOut)
 async def update_jobposting_api(
@@ -144,23 +249,6 @@ async def get_job_details_api(
 
     raise HTTPException(403, "Unauthorized")
 
-
-# @router.get("/jobposting/{uuid}", response_model=JobPostingOut)
-# async def get_job_details_api(
-#         uuid: UUID,
-#         db: AsyncSession = Depends(get_db),
-#         current_user=Depends(get_current_user)
-# ):
-#     job = await get_jobposting_by_uuid(db, uuid)
-#     if not job:
-#         raise HTTPException(404, "Job not found")
-#
-#     if job.visibility == "public" or job.agency_id == current_user.id:
-#         return job
-#
-#     raise HTTPException(403, "Unauthorized")
-
-
 # ------------job apply list-------------
 
 @router.get("/job/status/{job_uuid}")
@@ -177,16 +265,6 @@ async def get_single_job_status(
         current_user.id,
         job_uuid
     )
-
-# @router.get("/job/status")
-# async def get_agency_job_stats(
-#     db: AsyncSession = Depends(get_db),
-#     current_user = Depends(get_current_user)
-# ):
-#     if current_user.user_type != 2:
-#         raise HTTPException(403, "Only agencies allowed")
-#
-#     return await get_agency_job_application_stats(db, current_user.id)
 
 
 @router.get("/jobposting", response_model=list[JobPostingOut])
@@ -228,8 +306,9 @@ async def delete_job_api(
     return {"message": "Job deleted successfully"}
 
 
-# -------------------------------------------job posting ----------------------
-
+# ------------------------------------------------------------------------------------------------------------
+# -------------------------------------------Agency Profile Create ----------------------
+# -------------------------------------------------------------------------------------------------------------
 # -----------------------------
 # CREATE PROFILE (FORM-DATA)
 # -----------------------------
@@ -442,6 +521,39 @@ async def public_get_profile(
         **media
     }
 
+# ---------------------------------------
+# Post Agency without logo
+# ---------------------------------------
+@router.post("/agency-create", status_code=status.HTTP_201_CREATED, response_model=AgencyProfileResponse)
+async def create_agency_profile_json(
+    data: AgencyProfileCreate,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    if user.user_type != 2:
+        raise HTTPException(403, "Only agencies can create profile")
+
+    profile = await create_agency_profile(db, user.id, data)
+    return profile
+
+
+# ---------------------------------------
+# Patch Agency without logo
+# ---------------------------------------
+@router.patch("/agency-create", response_model=AgencyProfileResponse)
+async def update_agency_profile_json(
+    data: AgencyProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    if user.user_type != 2:
+        raise HTTPException(403, "Only agencies can update profile")
+
+    profile = await update_agency_profile(db, user.id, data)
+    if not profile:
+        raise HTTPException(404, "Agency profile not found")
+
+    return profile
 
 
 # ---------------------------------------

@@ -10,9 +10,10 @@ from .model_images_service import (
     get_images,
     delete_image_by_index,
     delete_all_images,
-    replace_image_by_index
+    replace_image_by_index,
 )
 from .model_images_schema import ImagesResponse
+
 
 router = APIRouter(prefix="/images", tags=["Model Images"])
 
@@ -101,3 +102,4 @@ async def delete_all(
 ):
     await delete_all_images(db, current_user.id)
     return {"message": "All images deleted"}
+
