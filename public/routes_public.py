@@ -596,8 +596,16 @@ async def get_public_contact_banner(db: AsyncSession = Depends(get_db)):
 # -------------------------------
 
 from datetime import datetime
+from fastapi import Request
 from sqlalchemy import func
 import os
+
+def parse_job_media(request: Request, job):
+    base = str(request.base_url).rstrip("/")
+
+    return {
+        "logo": f"{base}/{job.logo}" if getattr(job, "logo", None) else None
+    }
 
 def build_pay_string(job):
     if not job.pay_min and not job.pay_max:
@@ -629,7 +637,10 @@ def build_pay_string(job):
     return f"{amount} {unit}".strip() if unit else amount
 
 @router.get("/jobs")
-async def get_all_jobs(db: AsyncSession = Depends(get_db)):
+async def get_all_jobs(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
     stmt = (
         select(JobPosting, AgencyProfile)
         .join(User, User.id == JobPosting.agency_id)
@@ -645,11 +656,12 @@ async def get_all_jobs(db: AsyncSession = Depends(get_db)):
     rows = result.all()
 
     now = datetime.utcnow()
+    base = str(request.base_url).rstrip("/")
     response = []
 
     for job, profile in rows:
         logo_path = job.logo or profile.logo
-        logo = logo_path.replace("\\", "/") if logo_path else None
+        logo = f"{base}/{logo_path.replace('\\', '/')}" if logo_path else None
 
         posted = None
         if job.date_from:
@@ -662,9 +674,9 @@ async def get_all_jobs(db: AsyncSession = Depends(get_db)):
             "description": job.description,
             "project_type": job.project_type,
             "location": job.location,
+
             "logo": logo,
 
-            # 🔥 PAY DISPLAY
             "pay": build_pay_string(job),
             "pay_unit": job.pay_unit,
 
@@ -680,6 +692,60 @@ async def get_all_jobs(db: AsyncSession = Depends(get_db)):
         })
 
     return response
+
+
+# @router.get("/jobs")
+# async def get_all_jobs(db: AsyncSession = Depends(get_db)):
+#     stmt = (
+#         select(JobPosting, AgencyProfile)
+#         .join(User, User.id == JobPosting.agency_id)
+#         .join(AgencyProfile, AgencyProfile.user_id == User.id)
+#         .where(
+#             JobPosting.is_delete == False,
+#             JobPosting.visibility == "public"
+#         )
+#         .order_by(JobPosting.id.desc())
+#     )
+#
+#     result = await db.execute(stmt)
+#     rows = result.all()
+#
+#     now = datetime.utcnow()
+#     response = []
+#
+#     for job, profile in rows:
+#         logo_path = job.logo or profile.logo
+#         logo = logo_path.replace("\\", "/") if logo_path else None
+#
+#         posted = None
+#         if job.date_from:
+#             days = (now - job.date_from).days
+#             posted = "Today" if days <= 0 else f"{days} days ago"
+#
+#         response.append({
+#             "uuid": str(job.uuid),
+#             "job_role": job.job_role,
+#             "description": job.description,
+#             "project_type": job.project_type,
+#             "location": job.location,
+#             "logo": logo,
+#
+#             # 🔥 PAY DISPLAY
+#             "pay": build_pay_string(job),
+#             "pay_unit": job.pay_unit,
+#
+#             "qualifications": job.qualifications,
+#             "required_skills": job.required_skills,
+#
+#             "posted": posted,
+#
+#             "agency": {
+#                 "uuid": str(profile.uuid),
+#                 "company_name": profile.company_name
+#             }
+#         })
+#
+#     return response
 
 
 

@@ -34,8 +34,8 @@ class JobPostingBase(BaseModel):
 
 
 class JobPostingCreate(JobPostingBase):
-    title: str
-
+    pass
+    # title: str
 
 class JobPostingUpdate(JobPostingBase):
     pass

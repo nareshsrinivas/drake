@@ -113,7 +113,6 @@ class ModelMedia(Base):
     head_shot = Column(String, nullable=True)
     profile_photo = Column(String, nullable=True)
     introduction_video = Column(String, nullable=True)
-    # social_links = Column(JSONB, nullable=True)
     created_by = Column(Integer, nullable=True)
     updated_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=func.now())
@@ -148,6 +147,7 @@ class UserSocialLink(Base):
     pinterest = Column(String, nullable=True)
     linkedin = Column(String, nullable=True)
     youtube = Column(String, nullable=True)
+    facebook = Column(String, nullable=True)
 
 
 class AgencyProfile(Base):

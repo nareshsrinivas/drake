@@ -50,16 +50,7 @@ async def check_profile_completion(
         if not is_filled(value)
     ]
 
-    if missing_fields:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "Basic profile information incomplete",
-                "missing_fields": missing_fields
-            }
-        )
-
-    user_basic = True
+    user_basic = False if missing_fields else True
 
     # 3️⃣ Model Profile Exists
     model_profile = await db.scalar(

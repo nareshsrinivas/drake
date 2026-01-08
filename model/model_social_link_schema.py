@@ -11,6 +11,7 @@ class SocialLinkCreate(BaseModel):
     pinterest: str | None = None
     linkedin: str | None = None
     youtube: str | None = None
+    facebook: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -33,6 +34,7 @@ class SocialLinkResponse(BaseModel):
     pinterest: str | None
     linkedin: str | None
     youtube: str | None
+    facebook: str | None = None
 
     class Config:
         orm_mode = True
@@ -47,6 +49,7 @@ class SocialLinkPatch(BaseModel):
     pinterest: str | None = None
     linkedin: str | None = None
     youtube: str | None = None
+    facebook: str | None = None
 
     @model_validator(mode="before")
     @classmethod

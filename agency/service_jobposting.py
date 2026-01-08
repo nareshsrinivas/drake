@@ -1,9 +1,10 @@
 # agency/service_jobposting.py
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from uuid import UUID
 from datetime import datetime
-from models import JobPosting, JobApplication
+from models import JobPosting, JobApplication, User
+from fastapi import HTTPException
 
 
 def to_naive(dt: datetime | None):
@@ -122,20 +123,66 @@ async def delete_jobposting(db: AsyncSession, uuid: UUID, agency_id: int):
     return True, None
 
 
-# async def delete_jobposting(db: AsyncSession, uuid: UUID, agency_id: int):
-#     result = await db.execute(
-#         select(JobPosting).where(JobPosting.uuid == uuid)
-#     )
-#     job = result.scalars().first()
-#
-#     if not job:
-#         return None, "Job not found"
-#
-#     if job.agency_id != agency_id:
-#         return None, "Unauthorized"
-#
-#     await db.delete(job)
-#     await db.commit()
-#
-#     return True, None
+
+# ----------------- job posting list service  ----
+
+async def get_agency_single_job_status(
+    db,
+    agency_id: int,
+    job_uuid
+):
+    # 1️⃣ Validate & fetch job (ownership check)
+    result = await db.execute(
+        select(JobPosting)
+        .where(
+            JobPosting.uuid == job_uuid,
+            JobPosting.agency_id == agency_id,
+            JobPosting.is_delete == False
+        )
+    )
+    job = result.scalars().first()
+
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    # 2️⃣ Fetch applicants for this job
+    apps_result = await db.execute(
+        select(
+            JobApplication.uuid.label("application_uuid"),
+            JobApplication.status,
+            User.id.label("model_id"),
+            User.uuid.label("model_uuid"),
+            User.first_name,
+            User.last_name,
+            User.gender,
+            User.current_city
+        )
+        .join(User, User.id == JobApplication.model_id)
+        .where(
+            JobApplication.job_id == job.id,
+            JobApplication.is_delete == False
+        )
+    )
+
+    applicants = [
+        {
+            "application_uuid": str(row.application_uuid),
+            "model_id": row.model_id,
+            "model_uuid": str(row.model_uuid),
+            "name": f"{row.first_name} {row.last_name}",
+            "gender": row.gender,
+            "city": row.current_city,
+            "status": row.status
+        }
+        for row in apps_result.all()
+    ]
+
+    # 3️⃣ Final response
+    return {
+        # "job_uuid": str(job.uuid),
+        "job_role": job.job_role,
+        "location": job.location,
+        "total_applications": len(applicants),
+        "applicants": applicants
+    }
 

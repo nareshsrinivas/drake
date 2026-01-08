@@ -14,7 +14,7 @@ from agency.agency_profile_service import (
     create_agency_profile,
     update_agency_profile,
     get_agency_profile,
-    get_agency_by_uuid,
+    get_agency_by_uuid
 )
 from agency.schema_jobposting import *
 from agency.service_jobposting import *
@@ -25,6 +25,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter(prefix="/agency", tags=["Agency Profile"])
 
+def parse_job_media(request: Request, job):
+    base = str(request.base_url).rstrip("/")
+
+    return {
+        "logo": f"{base}/{job.logo}" if getattr(job, "logo", None) else None
+    }
 
 # ---------------------------------------------- job posting routes ------------------------------
 
@@ -59,7 +65,7 @@ async def create_jobposting_api(
 # ---------------------------------------
 # UPLOAD JOB POSTING LOGO
 # ---------------------------------------
-@router.post("/jobposting/{job_uuid}/upload-logo")
+@router.post("/jobposting/{jobposting_uuid}/upload-logo")
 async def upload_job_logo(
         job_uuid: UUID,
         file: UploadFile = File(...),
@@ -121,6 +127,7 @@ async def update_jobposting_api(
 @router.get("/jobposting/{uuid}", response_model=JobPostingOut)
 async def get_job_details_api(
         uuid: UUID,
+        request: Request,
         db: AsyncSession = Depends(get_db),
         current_user=Depends(get_current_user)
 ):
@@ -129,17 +136,83 @@ async def get_job_details_api(
         raise HTTPException(404, "Job not found")
 
     if job.visibility == "public" or job.agency_id == current_user.id:
-        return job
+        media = parse_job_media(request, job)
+        return {
+            **job.__dict__,
+            **media
+        }
 
     raise HTTPException(403, "Unauthorized")
 
 
+# @router.get("/jobposting/{uuid}", response_model=JobPostingOut)
+# async def get_job_details_api(
+#         uuid: UUID,
+#         db: AsyncSession = Depends(get_db),
+#         current_user=Depends(get_current_user)
+# ):
+#     job = await get_jobposting_by_uuid(db, uuid)
+#     if not job:
+#         raise HTTPException(404, "Job not found")
+#
+#     if job.visibility == "public" or job.agency_id == current_user.id:
+#         return job
+#
+#     raise HTTPException(403, "Unauthorized")
+
+
+# ------------job apply list-------------
+
+@router.get("/job/status/{job_uuid}")
+async def get_single_job_status(
+    job_uuid: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    if current_user.user_type != 2:
+        raise HTTPException(403, "Only agencies allowed")
+
+    return await get_agency_single_job_status(
+        db,
+        current_user.id,
+        job_uuid
+    )
+
+# @router.get("/job/status")
+# async def get_agency_job_stats(
+#     db: AsyncSession = Depends(get_db),
+#     current_user = Depends(get_current_user)
+# ):
+#     if current_user.user_type != 2:
+#         raise HTTPException(403, "Only agencies allowed")
+#
+#     return await get_agency_job_application_stats(db, current_user.id)
+
+
 @router.get("/jobposting", response_model=list[JobPostingOut])
 async def get_all_jobs_api(
+        request: Request,
         db: AsyncSession = Depends(get_db),
         current_user=Depends(get_current_user)
 ):
-    return await get_all_jobpostings(db, current_user.id)
+    jobs = await get_all_jobpostings(db, current_user.id)
+
+    response = []
+    for job in jobs:
+        media = parse_job_media(request, job)
+        response.append({
+            **job.__dict__,
+            **media
+        })
+
+    return response
+
+# @router.get("/jobposting", response_model=list[JobPostingOut])
+# async def get_all_jobs_api(
+#         db: AsyncSession = Depends(get_db),
+#         current_user=Depends(get_current_user)
+# ):
+#     return await get_all_jobpostings(db, current_user.id)
 
 
 @router.delete("/jobposting/{uuid}")
@@ -445,3 +518,6 @@ async def delete_agency_profile(
     return {
         "message": "Agency profile deleted successfully"
     }
+
+
+
