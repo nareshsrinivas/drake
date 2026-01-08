@@ -664,6 +664,7 @@ async def get_all_jobs(
         # logo = f"{base}/{logo_path.replace('\\', '/')}" if logo_path else None
         logo = base + "/" + logo_path.replace("\\", "/") if logo_path else None
 
+
         posted = None
         if job.date_from:
             days = (now - job.date_from).days
