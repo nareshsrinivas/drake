@@ -1,8 +1,15 @@
+from typing import Union
+
 from sqlalchemy import select, or_, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from models import JobPosting
 
 
-async def smart_search_jobs(db, search: str | None = None):
+async def smart_search_jobs(
+    db: AsyncSession,
+    search: Union[str, int, float, None] = None
+):
     stmt = (
         select(JobPosting)
         .where(
@@ -11,7 +18,8 @@ async def smart_search_jobs(db, search: str | None = None):
         )
     )
 
-    if search:
+    if search is not None:
+        search = str(search)
         keywords = search.lower().split()
 
         keyword_filters = []
@@ -33,16 +41,20 @@ async def smart_search_jobs(db, search: str | None = None):
                     JobPosting.is_paid == (word == "paid")
                 )
 
+            # 🔹 numeric search (salary range)
+            if word.replace(".", "", 1).isdigit():
+                num = float(word)
+                conditions.append(JobPosting.pay_min <= num)
+                conditions.append(JobPosting.pay_max >= num)
+
             keyword_filters.append(or_(*conditions))
 
-        # 🔥 IMPORTANT:
-        # all keywords must match somewhere
+        # 🔥 all keywords must match somewhere
         stmt = stmt.where(and_(*keyword_filters))
 
     result = await db.execute(stmt)
     jobs = result.scalars().all()
 
-    # 🔹 sparse response
     return [
         {
             "job_uuid": str(job.uuid),
@@ -58,3 +70,12 @@ async def smart_search_jobs(db, search: str | None = None):
         }
         for job in jobs
     ]
+
+
+
+
+
+
+
+
+

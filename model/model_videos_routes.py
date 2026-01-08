@@ -1,8 +1,9 @@
 import os
 import uuid
+from typing import Optional
 from fastapi import (
     APIRouter, UploadFile, File,
-    Depends, Request, HTTPException, status
+    Depends, Request, HTTPException, status,Form
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from moviepy import VideoFileClip
@@ -156,8 +157,72 @@ async def delete_video(
     return {"message": "Video deleted successfully"}
 
 
+# -------------- post video and link toghether---------
 
+@router.post(
+    "/video-link",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(oauth2_scheme)]
+)
+async def upload_video_and_or_link(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    video_url: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    COMBINED LOGIC OF:
+    - POST /model/video/
+    - POST /model/video/link
+    """
 
+    form = await request.form()
+
+    has_video_url = "video_url" in form
+    raw_video_url = form.get("video_url")
+
+    if not file and not has_video_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Either video file or video_url is required"
+        )
+
+    # ---------- VIDEO FILE LOGIC ----------
+    if file:
+        if file.content_type not in ALLOWED_VIDEO_TYPES:
+            raise HTTPException(400, "Invalid video type")
+
+        content = await file.read()
+        if len(content) / (1024 * 1024) > MAX_VIDEO_MB:
+            raise HTTPException(400, "Max video limit is 10 MB")
+
+        filename = f"{uuid.uuid4()}_{file.filename}"
+        path = f"{UPLOAD_DIR}/{filename}"
+
+        with open(path, "wb") as f:
+            f.write(content)
+
+        clip = VideoFileClip(path)
+        if not (MIN_DURATION <= clip.duration <= MAX_DURATION):
+            clip.close()
+            os.remove(path)
+            raise HTTPException(400, "Video must be 15–60 seconds")
+        clip.close()
+
+        await add_video(db, current_user.id, path)
+
+    # ---------- VIDEO LINK LOGIC ----------
+    if has_video_url:
+        cleaned_url = str(raw_video_url).strip()
+
+        # ignore swagger default & empty
+        if cleaned_url and cleaned_url != "https://example.com/":
+            await add_video_link(db, current_user.id, cleaned_url)
+
+    return {
+        "message": "Video and/or video link added successfully"
+    }
 
 
 

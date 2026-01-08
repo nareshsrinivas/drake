@@ -661,7 +661,8 @@ async def get_all_jobs(
 
     for job, profile in rows:
         logo_path = job.logo or profile.logo
-        logo = f"{base}/{logo_path.replace('\\', '/')}" if logo_path else None
+        # logo = f"{base}/{logo_path.replace('\\', '/')}" if logo_path else None
+        logo = base + "/" + logo_path.replace("\\", "/") if logo_path else None
 
         posted = None
         if job.date_from:
