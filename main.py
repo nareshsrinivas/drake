@@ -82,6 +82,7 @@ from public.routes_public import router as public_router
 from model.model_routes_master import router as model_router
 from agency.agency_profile_routes import router as agency_router
 from job_applications.routes import router as job_application_router
+from agency.agency_progress_routes import router as agency_progress_router
 
 app.include_router(public_router)
 app.include_router(auth_router)
@@ -93,6 +94,7 @@ app.include_router(slider_router)
 app.include_router(work_router)
 app.include_router(skill_router)
 app.include_router(contact_router)
+app.include_router(agency_progress_router)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

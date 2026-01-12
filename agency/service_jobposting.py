@@ -20,6 +20,7 @@ async def create_jobposting(db: AsyncSession, data, agency_id: int):
         job_role=data.job_role,
         description=data.description,
         project_type=data.project_type,
+        work_type=data.work_type,
         gender=data.gender,
         location=data.location,
         pay_min=data.pay_min,
@@ -30,6 +31,8 @@ async def create_jobposting(db: AsyncSession, data, agency_id: int):
 
         qualifications=data.qualifications,
         required_skills=data.required_skills,
+        experience=data.experience,
+        responsibility=data.responsibility,
 
         # 🔥 CLEAN DATETIMES HERE
         date_from=to_naive(data.date_from),

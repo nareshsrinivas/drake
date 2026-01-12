@@ -6,6 +6,8 @@ import os
 import uuid
 from uuid import UUID
 from fastapi import Request
+from typing import Optional, Dict, List
+from datetime import datetime
 from sqlalchemy import select, func
 from core.media import parse_media
 from core.deps import get_db, get_current_user
@@ -67,6 +69,9 @@ async def create_jobposting_api(
 # ---------------------------------------
 # UPLOAD JOB POSTING LOGO
 # ---------------------------------------
+from fastapi import Request
+
+
 @router.post("/jobposting/{jobposting_uuid}/upload-logo")
 async def upload_job_logo(
         job_uuid: UUID,
@@ -116,28 +121,41 @@ async def upload_job_logo(
 async def create_job_with_logo(
     request: Request,
 
-    # -------- job fields (FORM DATA) --------
+    # -------- BASIC FIELDS --------
     job_role: str = Form(...),
     description: str | None = Form(None),
     project_type: str | None = Form(None),
+    work_type: list[str] | None = Form(None),
 
     gender: str | None = Form("any"),
     location: str | None = Form(None),
 
+    # -------- PAY --------
     pay_min: float | None = Form(None),
     pay_max: float | None = Form(None),
     pay_type: str | None = Form(None),
     pay_unit: str | None = Form(None),
     is_paid: bool | None = Form(True),
 
+    # -------- QUALIFICATIONS --------
     qualifications: str | None = Form(None),
     required_skills: str | None = Form(None),
+    experience: str | None = Form(None),
+    responsibility: str | None = Form(None),
 
+    # -------- DATES (🔥 MISSING EARLIER) --------
+    date_from: datetime | None = Form(None),
+    date_to: datetime | None = Form(None),
+    expires_at: datetime | None = Form(None),
+    deadline: datetime | None = Form(None),
+
+    # -------- REQUIREMENTS (🔥 FIXED) --------
     requirements: str | None = Form(None),
+
     status: str | None = Form("open"),
     visibility: str | None = Form("public"),
 
-    # -------- logo --------
+    # -------- LOGO --------
     logo: UploadFile | None = File(None),
 
     db: AsyncSession = Depends(get_db),
@@ -156,22 +174,12 @@ async def create_job_with_logo(
     if len(result.scalars().all()) >= 3:
         raise HTTPException(400, "subscribe for more job postings")
 
-    # ✅ UPDATED: SAFE requirements parsing
-    parsed_requirements = None
-    if requirements and requirements.strip():
-        try:
-            parsed_requirements = json.loads(requirements)
-        except json.JSONDecodeError:
-            raise HTTPException(
-                status_code=400,
-                detail="requirements must be valid JSON"
-            )
-
-    # 🧠 Build schema manually
+    # 🧠 Build schema (NOW COMPLETE)
     data = JobPostingCreate(
         job_role=job_role,
         description=description,
         project_type=project_type,
+        work_type=work_type,
         gender=gender,
         location=location,
         pay_min=pay_min,
@@ -181,7 +189,15 @@ async def create_job_with_logo(
         is_paid=is_paid,
         qualifications=qualifications,
         required_skills=required_skills,
-        requirements=parsed_requirements,
+        experience=experience,
+        responsibility=responsibility,
+
+        date_from=date_from,
+        date_to=date_to,
+        expires_at=expires_at,
+        deadline=deadline,
+
+        requirements=requirements,
         status=status,
         visibility=visibility
     )
@@ -267,7 +283,7 @@ async def get_single_job_status(
     )
 
 
-@router.get("/jobposting", response_model=list[JobPostingOut])
+@router.get("/jobposting")
 async def get_all_jobs_api(
         request: Request,
         db: AsyncSession = Depends(get_db),
@@ -284,13 +300,6 @@ async def get_all_jobs_api(
         })
 
     return response
-
-# @router.get("/jobposting", response_model=list[JobPostingOut])
-# async def get_all_jobs_api(
-#         db: AsyncSession = Depends(get_db),
-#         current_user=Depends(get_current_user)
-# ):
-#     return await get_all_jobpostings(db, current_user.id)
 
 
 @router.delete("/jobposting/{uuid}")
@@ -488,8 +497,6 @@ async def get_my_profile(
         **media
     }
 
-
-
 # -----------------------------
 # PUBLIC GET PROFILE BY UUID
 # -----------------------------
@@ -560,34 +567,33 @@ async def update_agency_profile_json(
 # UPLOAD AGENCY LOGO
 # ---------------------------------------
 @router.post("/upload-logo")
-def upload_logo(
-        file: UploadFile = File(...),
-        db: Session = Depends(get_db),
-        user=Depends(get_current_user)
+async def upload_logo(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user)
 ):
     if user.user_type != 2:
         raise HTTPException(status_code=403, detail="Only agencies can upload logo")
 
-    # validate file type
     if not file.filename.lower().endswith(("jpg", "jpeg", "png", "webp")):
         raise HTTPException(status_code=400, detail="Invalid file format")
 
-    # generate unique name
     filename = f"{uuid.uuid4()}_{file.filename.replace(' ', '_')}"
     file_path = os.path.join(UPLOAD_DIR, filename)
 
-    # save file
     with open(file_path, "wb") as buffer:
-        buffer.write(file.file.read())
+        buffer.write(await file.read())
 
-    # update DB
-    profile = get_agency_profile(db, user.id)
+    # ✅ MUST await
+    profile = await get_agency_profile(db, user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Agency profile not found")
 
     profile.logo = file_path
-    db.commit()
-    db.refresh(profile)
+    profile.updated_by = user.id
+
+    await db.commit()
+    await db.refresh(profile)
 
     return {
         "message": "Logo uploaded successfully",
@@ -599,7 +605,6 @@ def upload_logo(
 # ----------------------------------------------
 # agaency profile delete
 # ----------------------------------------------
-
 @router.delete("/delete")
 async def delete_agency_profile(
         db: AsyncSession = Depends(get_db),

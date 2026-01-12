@@ -46,7 +46,6 @@ async def list_links(
     return await get_all_links(db, current_user.id)
 
 
-
 # ------------------ PATCH LINKS ------------------
 @router.patch(
     "/",

@@ -506,144 +506,6 @@ async def get_public_model_details(
         ],
     }
 
-# @router.get("/models/details/{uuid}")
-# async def get_public_model_details(
-#         uuid: str,
-#         request: Request,
-#         db: AsyncSession = Depends(get_db)
-# ):
-#     """Get complete details for a specific model including media gallery"""
-#     q = select(User).where(cast(User.uuid, String) == uuid, User.user_type == 1)
-#     result = await db.execute(q)
-#     user = result.scalars().first()
-#
-#     if not user:
-#         raise HTTPException(status_code=404, detail="Model not found")
-#
-#     # Fetch related objects
-#     media_res = await db.execute(
-#         select(ModelMedia).where(ModelMedia.user_id == user.id).limit(1)
-#     )
-#     media = media_res.scalars().first()
-#
-#     profile_res = await db.execute(
-#         select(ModelProfile).where(ModelProfile.user_id == user.id).limit(1)
-#     )
-#     profile = profile_res.scalars().first()
-#
-#     professional_res = await db.execute(
-#         select(ModelProfessional).where(ModelProfessional.user_id == user.id).limit(1)
-#     )
-#     professional = professional_res.scalars().first()
-#
-#     portfolio_res = await db.execute(
-#         select(ModelPortfolio).where(ModelPortfolio.user_id == user.id)
-#     )
-#     portfolio = portfolio_res.scalars().all()
-#
-#     # SOCIAL LINKS
-#     social_links_res = await db.execute(
-#         select(UserSocialLink).where(UserSocialLink.user_id == user.id)
-#     )
-#     social_links = social_links_res.scalars().all()
-#
-#     # =========================
-#     # ✅ IMAGES + VIDEO (FIXED)
-#     # =========================
-#     base_url = str(request.base_url).rstrip("/")
-#
-#     # Parent media (for video)
-#     media_gallery_res = await db.execute(
-#         select(Image_Videos).where(Image_Videos.user_id == user.id)
-#     )
-#     media_gallery_db = media_gallery_res.scalars().first()
-#
-#     images = []
-#     video = None
-#     profile_photo = None
-#
-#     # Only fetch images if media_gallery exists
-#     if media_gallery_db:
-#         # Fetch images from ModelImages table
-#         images_res = await db.execute(
-#             select(ModelImages)
-#             .where(ModelImages.media_uuid == media_gallery_db.uuid)
-#             .order_by(ModelImages.image_index)
-#             .limit(5)
-#         )
-#         images_db = images_res.scalars().all()
-#
-#         images = [
-#             f"{base_url}/{img.image_path}"
-#             for img in images_db
-#         ]
-#
-#         # Set profile photo as first image
-#         profile_photo = images[0] if images else None
-#
-#         # Set video if exists
-#         if media_gallery_db.video:
-#             video = f"{base_url}/{media_gallery_db.video}"
-#
-#     return {
-#         "basic_info": {
-#             "uuid": str(user.uuid),
-#             "first_name": user.first_name,
-#             "last_name": user.last_name,
-#             "full_name": f"{user.first_name} {user.last_name}",
-#             "profile_photo": profile_photo,
-#             "current_city": user.current_city,
-#             "age": user.age,
-#             "gender": user.gender,
-#             "nationality": user.nationality,
-#         },
-#
-#         "profile": {
-#             "height": profile.height if profile else None,
-#             "weight": profile.weight if profile else None,
-#             "chest_bust": profile.chest_bust if profile else None,
-#             "waist": profile.waist if profile else None,
-#             "hips": profile.hips if profile else None,
-#             "shoulder": profile.shoulder if profile else None,
-#             "shoe_size": profile.shoe_size if profile else None,
-#             "complexion": profile.complexion if profile else None,
-#             "eye_color": profile.eye_color if profile else None,
-#             "hair_color": profile.hair_color if profile else None,
-#             "body_type": profile.body_type if profile else None,
-#             "hair_length": profile.hair_length if profile else None,
-#         },
-#
-#         "professional": {
-#             "experience_details": professional.experience_details if professional else None,
-#             "skills": professional.skills if professional else [],
-#             "languages": professional.languages if professional else [],
-#             "interested_categories": professional.interested_categories if professional else [],
-#         },
-#
-#         "media_gallery": {
-#             "images": images,  # max 5
-#             "video": video  # single
-#         },
-#
-#         "social_links": [
-#             {
-#                 "uuid": str(link.uuid),
-#                 "platform": link.platform,
-#                 "url": link.url,
-#             }
-#             for link in social_links
-#         ],
-#
-#         "portfolio": [
-#             {
-#                 "uuid": str(item.uuid),
-#                 "media_type": item.media_type,
-#                 "file_url": item.file_url
-#             }
-#             for item in portfolio
-#         ]
-#     }
-
 
 # -----------------------------------
 # 🏢 PUBLIC: LIST ALL APPROVED AGENCIES (WITH SERVICES + SOCIAL LINKS)
@@ -820,6 +682,7 @@ async def get_all_jobs(
             "job_role": job.job_role,
             "description": job.description,
             "project_type": job.project_type,
+            # "work_type": job.work_type,
             "gender": job.gender,
             "location": job.location,
 
@@ -838,6 +701,7 @@ async def get_all_jobs(
             "qualifications": job.qualifications,
             "required_skills": job.required_skills,
             "requirements": job.requirements,
+            "experience": job.experience,
 
             # ---------------- DATES ----------------
             "date_from": job.date_from,
@@ -863,66 +727,6 @@ async def get_all_jobs(
         })
 
     return response
-
-
-# @router.get("/jobs")
-# async def get_all_jobs(
-#     request: Request,
-#     db: AsyncSession = Depends(get_db)
-# ):
-#     stmt = (
-#         select(JobPosting, AgencyProfile)
-#         .join(User, User.id == JobPosting.agency_id)
-#         .join(AgencyProfile, AgencyProfile.user_id == User.id)
-#         .where(
-#             JobPosting.is_delete == False,
-#             JobPosting.visibility == "public"
-#         )
-#         .order_by(JobPosting.id.desc())
-#     )
-#
-#     result = await db.execute(stmt)
-#     rows = result.all()
-#
-#     now = datetime.utcnow()
-#     base = str(request.base_url).rstrip("/")
-#     response = []
-#
-#     for job, profile in rows:
-#         logo_path = job.logo or profile.logo
-#         # logo = f"{base}/{logo_path.replace('\\', '/')}" if logo_path else None
-#         logo = base + "/" + logo_path.replace("\\", "/") if logo_path else None
-#
-#
-#         posted = None
-#         if job.date_from:
-#             days = (now - job.date_from).days
-#             posted = "Today" if days <= 0 else f"{days} days ago"
-#
-#         response.append({
-#             "uuid": str(job.uuid),
-#             "job_role": job.job_role,
-#             "description": job.description,
-#             "project_type": job.project_type,
-#             "location": job.location,
-#
-#             "logo": logo,
-#
-#             "pay": build_pay_string(job),
-#             "pay_unit": job.pay_unit,
-#
-#             "qualifications": job.qualifications,
-#             "required_skills": job.required_skills,
-#
-#             "posted": posted,
-#
-#             "agency": {
-#                 "uuid": str(profile.uuid),
-#                 "company_name": profile.company_name
-#             }
-#         })
-#
-#     return response
 
 #====================
 # get public profile

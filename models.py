@@ -1,4 +1,6 @@
 import uuid
+
+# from snowflake.snowpark.functions import column
 from sqlalchemy import Column, Integer, Enum, JSON, Numeric, Float, String, Date, ForeignKey, Table, UniqueConstraint, \
     Text, Boolean, DateTime, func
 from sqlalchemy.orm import relationship
@@ -293,6 +295,7 @@ class JobPosting(Base):
     job_role = Column(String(255), nullable=False)
     description = Column(Text)
     project_type = Column(String(100))
+    work_type = Column(ARRAY(String), nullable=True)
     logo = Column(String(255), nullable=True)
 
     gender = Column(String(30), default="any")
@@ -306,6 +309,8 @@ class JobPosting(Base):
 
     qualifications = Column(Text, nullable=True)
     required_skills = Column(String(500), nullable=True)
+    experience = Column(String(100), nullable=True)
+    responsibility = Column(Text, nullable=True)
 
     # 🔥 NAIVE DATETIMES ONLY
     date_from = Column(DateTime, nullable=True)

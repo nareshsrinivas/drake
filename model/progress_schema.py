@@ -5,18 +5,8 @@ class ProfileStatusResponse(BaseModel):
     model_profile: bool
     model_professional: bool
     model_media: bool
+    # profile_Status: bool
 
 
-
-
-
-
-# from pydantic import BaseModel
-#
-# class ProfileStatusResponse(BaseModel):
-#     user_basic: bool
-#     model_profile: bool
-#     model_professional: bool
-#     # model_video: bool
-#     # model_images: bool
-#     model_media: bool
+# class agencyProfileStatus(BaseModel):
+#         profile_Status: bool

@@ -1,6 +1,6 @@
 # agency/schema_jobposting.py
 from pydantic import BaseModel
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from uuid import UUID
 from datetime import datetime
 
@@ -9,6 +9,8 @@ class JobPostingBase(BaseModel):
     job_role: Optional[str] = None
     description: Optional[str] = None
     project_type: Optional[str] = None
+    # work_type: Optional[List[str]] = None
+    work_type: list[str] | None
     logo: Optional[str] = None
 
     gender: Optional[str] = "any"
@@ -22,20 +24,22 @@ class JobPostingBase(BaseModel):
 
     qualifications: Optional[str] = None
     required_skills: Optional[str] = None
+    experience: Optional[str] = None
+    responsibility: str | None = None
 
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     deadline: Optional[datetime] = None
 
-    requirements: Optional[Dict] = None
+    requirements: Optional[str] = None
     status: Optional[str] = "open"
     visibility: Optional[str] = "public"
 
 
 class JobPostingCreate(JobPostingBase):
     pass
-    # title: str
+
 
 class JobPostingUpdate(JobPostingBase):
     pass
