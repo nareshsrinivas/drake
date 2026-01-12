@@ -25,11 +25,11 @@ class RegisterUser(BaseModel):
     class Config:
         extra = "forbid"   # 🔥 THIS IS THE KEY
 
-    @field_validator("confirm_password")
-    def passwords_match(cls, v, info):
-        if info.data.get("password") != v:
+    @model_validator(mode="after")
+    def validate_passwords_match(self):
+        if self.password != self.confirm_password:
             raise ValueError("password and confirm_password do not match")
-        return v
+        return self
 
 
 # ---------------- UPDATE PROFILE ---------------- #
