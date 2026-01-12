@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator, ConfigDict
 from datetime import date
 from uuid import UUID
 
@@ -17,19 +17,20 @@ class RegisterUser(BaseModel):
     dob: date
 
     @field_validator("confirm_password")
+    @classmethod
     def passwords_match(cls, v, info):
         if info.data.get("password") != v:
             raise ValueError("password and confirm_password do not match")
         return v
 
-    class Config:
-        extra = "forbid"   # 🔥 THIS IS THE KEY
-
-    @model_validator(mode="after")
-    def validate_passwords_match(self):
-        if self.password != self.confirm_password:
-            raise ValueError("password and confirm_password do not match")
-        return self
+    # class Config:
+    #     extra = "forbid"   # 🔥 THIS IS THE KEY
+    model_config = ConfigDict(extra="forbid")
+    # @field_validator("confirm_password")
+    # def passwords_match(cls, v, info):
+    #     if info.data.get("password") != v:
+    #         raise ValueError("password and confirm_password do not match")
+    #     return v
 
 
 # ---------------- UPDATE PROFILE ---------------- #
@@ -52,18 +53,18 @@ class UpdateUserInfo(BaseModel):
 
         raise ValueError("Fill some information")
 
-    class Config:
-        extra = "forbid"
-
+    # class Config:
+    #     extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 # ---------------- LOGIN ---------------- #
 
 class LoginUser(BaseModel):
     email: EmailStr
     password: str
 
-    class Config:
-        extra = "forbid"
-
+    # class Config:
+    #     extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 # ---------------- REFRESH TOKEN ---------------- #
 
@@ -98,9 +99,9 @@ class AdminOut(BaseModel):
     email: EmailStr
     role: str
 
-    class Config:
-        from_attributes = True
-
+    # class Config:
+    #     from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------------- GOOGLE LOGIN ---------------- #
 
