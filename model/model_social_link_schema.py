@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator,ConfigDict
 from uuid import UUID
 
 
@@ -20,7 +20,10 @@ class SocialLinkCreate(BaseModel):
             raise ValueError("At least one social link must be provided")
         return values
 
-    # class Config:
+    model_config = ConfigDict(extra="forbid")
+
+
+# class Config:
     #     extra = "forbid"
 
 
@@ -36,10 +39,10 @@ class SocialLinkResponse(BaseModel):
     youtube: str | None
     facebook: str | None = None
 
-    class Config:
-        orm_mode = True
+    # class Config:
+    #     orm_mode = True
         # extra = "forbid"
-
+    model_config = ConfigDict(from_attributes=True)
 
 class SocialLinkPatch(BaseModel):
     x: str | None = None
@@ -57,6 +60,8 @@ class SocialLinkPatch(BaseModel):
         if not values or not any(v is not None for v in values.values()):
             raise ValueError("At least one social link must be provided")
         return values
+
+    model_config = ConfigDict(extra="forbid")
 
     # class Config:
     #     extra = "forbid"
